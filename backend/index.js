@@ -20,7 +20,8 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://manager-link-wbew.vercel.app/login",
+  "https://manager-link-flax.vercel.app",
+  "https://manager-link-wbew.vercel.app"
 ];
 
 app.use(
@@ -33,6 +34,8 @@ app.use(
       }
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
