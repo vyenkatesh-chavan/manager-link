@@ -19,6 +19,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
+    origin: "https://manager-link-flax.vercel.app/",
     origin: "http://localhost:5173",
     credentials: true,
   })
