@@ -69,6 +69,11 @@ const auth = (req, res, next) => {
     });
   }
 };
+app.get("/", (req, res) => {
+  res.json({
+    status: "Backend Running",
+  });
+});
 
 /* ---------------- Register ---------------- */
 
