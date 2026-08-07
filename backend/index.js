@@ -20,7 +20,7 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://manager-link-flax.vercel.app",
+  "https://manager-link-wbew.vercel.app/login",
 ];
 
 app.use(
