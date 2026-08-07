@@ -168,6 +168,198 @@ app.post("/logout", (req, res) => {
     message: "Logout Successful",
   });
 });
+/* ---------------- Create Category ---------------- */
+
+app.post("/category", auth, async (req, res) => {
+  try {
+    const { categoryName } = req.body;
+
+    if (!categoryName) {
+      return res.status(400).json({
+        message: "Category name is required",
+      });
+    }
+
+    const category = await Data.create({
+      userId: req.userId,
+      categoryName,
+      links: [],
+    });
+
+    res.status(201).json(category);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
+/* ---------------- Get All Categories ---------------- */
+
+app.get("/category", auth, async (req, res) => {
+  try {
+    const categories = await Data.find({
+      userId: req.userId,
+    });
+
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
+/* ---------------- Get One Category ---------------- */
+
+app.get("/category/:id", auth, async (req, res) => {
+  try {
+    const category = await Data.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    res.json(category);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
+/* ---------------- Add Link ---------------- */
+
+app.post("/category/:id/link", auth, async (req, res) => {
+  try {
+    const { title, url, username, password, notes } = req.body;
+
+    const category = await Data.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    category.links.push({
+      title,
+      url,
+      username,
+      password,
+      notes,
+    });
+
+    await category.save();
+
+    res.json(category);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
+/* ---------------- Update Link ---------------- */
+
+app.put("/category/:categoryId/link/:linkId", auth, async (req, res) => {
+  try {
+    const category = await Data.findOne({
+      _id: req.params.categoryId,
+      userId: req.userId,
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    const link = category.links.id(req.params.linkId);
+
+    if (!link) {
+      return res.status(404).json({
+        message: "Link not found",
+      });
+    }
+
+    link.title = req.body.title ?? link.title;
+    link.url = req.body.url ?? link.url;
+    link.username = req.body.username ?? link.username;
+    link.password = req.body.password ?? link.password;
+    link.notes = req.body.notes ?? link.notes;
+
+    await category.save();
+
+    res.json(category);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
+/* ---------------- Delete Link ---------------- */
+
+app.delete("/category/:categoryId/link/:linkId", auth, async (req, res) => {
+  try {
+    const category = await Data.findOne({
+      _id: req.params.categoryId,
+      userId: req.userId,
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    category.links.pull(req.params.linkId);
+
+    await category.save();
+
+    res.json({
+      message: "Link Deleted Successfully",
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
+/* ---------------- Delete Category ---------------- */
+
+app.delete("/category/:id", auth, async (req, res) => {
+  try {
+    const category = await Data.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    res.json({
+      message: "Category Deleted Successfully",
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
 
 /* ---------- KEEP ALL YOUR CATEGORY ROUTES UNCHANGED ---------- */
 
