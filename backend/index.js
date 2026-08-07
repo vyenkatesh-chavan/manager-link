@@ -13,18 +13,29 @@ dotenv.config();
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(express.json());
 app.use(cookieParser());
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://manager-link-flax.vercel.app",
+];
 
 app.use(
   cors({
-    origin: "https://manager-link-flax.vercel.app/",
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
-//console.log("MONGO_URI =", process.env.MONGO_URI);
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
@@ -62,21 +73,23 @@ app.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password)
+    if (!name || !email || !password) {
       return res.status(400).json({
         message: "All fields are required",
       });
+    }
 
     const exist = await User.findOne({ email });
 
-    if (exist)
+    if (exist) {
       return res.status(400).json({
         message: "Email already exists",
       });
+    }
 
     const hash = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    await User.create({
       name,
       email,
       password: hash,
@@ -84,10 +97,11 @@ app.post("/register", async (req, res) => {
 
     res.status(201).json({
       message: "User Registered",
-      user,
     });
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({
+      message: err.message,
+    });
   }
 });
 
@@ -99,17 +113,19 @@ app.post("/login", async (req, res) => {
 
     const user = await User.findOne({ email });
 
-    if (!user)
+    if (!user) {
       return res.status(404).json({
         message: "User not found",
       });
+    }
 
     const match = await bcrypt.compare(password, user.password);
 
-    if (!match)
+    if (!match) {
       return res.status(400).json({
         message: "Wrong Password",
       });
+    }
 
     const token = jwt.sign(
       {
@@ -123,179 +139,36 @@ app.post("/login", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.json({
       message: "Login Successful",
     });
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({
+      message: err.message,
+    });
   }
 });
 
 /* ---------------- Logout ---------------- */
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
 
   res.json({
     message: "Logout Successful",
   });
 });
 
-/* ---------------- Create Category ---------------- */
-
-app.post("/category", auth, async (req, res) => {
-  try {
-    const { categoryName } = req.body;
-
-    const category = await Data.create({
-      userId: req.userId,
-      categoryName,
-      links: [],
-    });
-
-    res.status(201).json(category);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-/* ---------------- Get All Categories ---------------- */
-
-app.get("/category", auth, async (req, res) => {
-  try {
-    const categories = await Data.find({
-      userId: req.userId,
-    });
-
-    res.json(categories);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-/* ---------------- Get One Category ---------------- */
-
-app.get("/category/:id", auth, async (req, res) => {
-  try {
-    const category = await Data.findOne({
-      _id: req.params.id,
-      userId: req.userId,
-    });
-
-    if (!category)
-      return res.status(404).json({
-        message: "Category not found",
-      });
-
-    res.json(category);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-/* ---------------- Add Link ---------------- */
-
-app.post("/category/:id/link", auth, async (req, res) => {
-  try {
-    const category = await Data.findOne({
-      _id: req.params.id,
-      userId: req.userId,
-    });
-
-    if (!category)
-      return res.status(404).json({
-        message: "Category not found",
-      });
-
-    category.links.push(req.body);
-
-    await category.save();
-
-    res.json(category);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-/* ---------------- Update Link ---------------- */
-
-app.put("/category/:categoryId/link/:linkId", auth, async (req, res) => {
-  try {
-    const category = await Data.findOne({
-      _id: req.params.categoryId,
-      userId: req.userId,
-    });
-
-    if (!category)
-      return res.status(404).json({
-        message: "Category not found",
-      });
-
-    const link = category.links.id(req.params.linkId);
-
-    if (!link)
-      return res.status(404).json({
-        message: "Link not found",
-      });
-
-    Object.assign(link, req.body);
-
-    await category.save();
-
-    res.json(category);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-/* ---------------- Delete Link ---------------- */
-
-app.delete("/category/:categoryId/link/:linkId", auth, async (req, res) => {
-  try {
-    const category = await Data.findOne({
-      _id: req.params.categoryId,
-      userId: req.userId,
-    });
-
-    if (!category)
-      return res.status(404).json({
-        message: "Category not found",
-      });
-
-    category.links.pull(req.params.linkId);
-
-    await category.save();
-
-    res.json({
-      message: "Link Deleted",
-    });
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-/* ---------------- Delete Category ---------------- */
-
-app.delete("/category/:id", auth, async (req, res) => {
-  try {
-    await Data.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.userId,
-    });
-
-    res.json({
-      message: "Category Deleted",
-    });
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-/* ---------------- Server ---------------- */
+/* ---------- KEEP ALL YOUR CATEGORY ROUTES UNCHANGED ---------- */
 
 const PORT = process.env.PORT || 5000;
 
